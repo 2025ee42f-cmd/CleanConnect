@@ -219,4 +219,7 @@ def crew_patch():
 @app.get('/photos/<path:filename>')
 def photo(filename):return send_from_directory(UP,filename)
 
-if __name__=='__main__':init_db();app.run(debug=True,host='127.0.0.1',port=5000)
+init_db()
+
+if __name__ == '__main__':
+    app.run(debug=True, host='127.0.0.1', port=5000)
