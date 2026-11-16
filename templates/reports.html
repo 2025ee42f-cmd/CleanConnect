@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">CC</span>
+      CleanConnect
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="report.html">Report an Issue</a>
+      <a href="reports.html" class="active">Reports</a>
+      <a href="recruit.html">Join the Crew</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <div class="page-header">
+      <h1 id="pageTitle">Reports</h1>
+      <a href="report.html" class="btn btn-primary">+ Submit Report</a>
+    </div>
+
+    <div class="filter-row" id="filterRow">
+      <button class="chip active" data-status="">All</button>
+      <button class="chip" data-status="Submitted">Submitted</button>
+      <button class="chip" data-status="In Progress">In Progress</button>
+      <button class="chip" data-status="Resolved">Resolved</button>
+      <button class="chip" data-status="Verified">Verified</button>
+    </div>
+
+    <div id="reportList"></div>
+  </div>
+</main>
+
+<!-- Feedback modal (public users, Resolved reports) -->
+<div class="modal-backdrop" id="feedbackBackdrop">
+  <form class="glass modal" id="feedbackForm">
+    <button type="button" class="modal-close" id="closeFeedback">&times;</button>
+    <h2 class="form-title">Is the issue resolved?</h2>
+    <div class="alert alert-error" id="feedbackError"></div>
+    <div class="field">
+      <label>Resolved?</label>
+      <div class="hero-actions" style="justify-content:flex-start">
+        <button type="button" class="btn btn-secondary" data-resolved="yes" id="fbYes">Yes</button>
+        <button type="button" class="btn btn-secondary" data-resolved="no" id="fbNo">No</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Rating</label>
+      <div class="rating-row" id="ratingRow">
+        <span class="star" data-val="1">★</span>
+        <span class="star" data-val="2">★</span>
+        <span class="star" data-val="3">★</span>
+        <span class="star" data-val="4">★</span>
+        <span class="star" data-val="5">★</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="fbComment">Comment</label>
+      <textarea id="fbComment" placeholder="Optional comment…"></textarea>
+    </div>
+    <div class="field" id="afterPhotoField" style="display:none">
+      <label for="fbAfterPhoto">Upload an after-cleaning photo</label>
+      <input type="file" id="fbAfterPhoto" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block" id="fbSubmitBtn">Submit Feedback</button>
+  </form>
+</div>
+
+<!-- Admin: assign crew modal -->
+<div class="modal-backdrop" id="assignBackdrop">
+  <form class="glass modal" id="assignForm">
+    <button type="button" class="modal-close" id="closeAssign">&times;</button>
+    <h2 class="form-title">Assign crew member</h2>
+    <div class="alert alert-error" id="assignError"></div>
+    <div class="field">
+      <label for="crewSelect">Crew member</label>
+      <select id="crewSelect" required></select>
+    </div>
+    <button type="submit" class="btn btn-primary btn-block">Assign</button>
+  </form>
+</div>
+
+<footer>CleanConnect · Public Service Platform</footer>
+
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script src="static/js/reports-ui.js"></script>
+<script>
+const user = requireRole(["public", "admin", "crew"]);
+let currentStatus = "";
+let activeReportId = null;
+
+if (user?.role === "admin") document.getElementById("pageTitle").textContent = "All Reports";
+if (user?.role === "public") document.getElementById("pageTitle").textContent = "My Reports";
+if (user?.role === "crew") document.getElementById("pageTitle").textContent = "Community Reports";
+
+document.querySelectorAll("#filterRow .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("#filterRow .chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    currentStatus = chip.dataset.status;
+    loadReports();
+  });
+});
+
+async function loadReports() {
+  const list = document.getElementById("reportList");
+  list.innerHTML = `<div class="empty-state">Loading reports…</div>`;
+  try {
+    const qs = currentStatus ? `?status=${encodeURIComponent(currentStatus)}` : "";
+    const { reports } = await CC.api(`get-reports${qs}`);
+    if (!reports.length) {
+      list.innerHTML = `<div class="glass empty-state"><div class="e-icon">🧾</div>No reports found.</div>`;
+      return;
+    }
+    list.innerHTML = reports.map((r) => ReportsUI.renderReportCard(r, actionsFor(r))).join("");
+    attachActionHandlers();
+  } catch (err) {
+    list.innerHTML = `<div class="glass empty-state">Could not load reports: ${CC.escapeHtml(err.message)}</div>`;
+  }
+}
+
+function actionsFor(r) {
+  const actions = [];
+  if (user.role === "public" && r.status === "Resolved") {
+    actions.push(`<button class="btn btn-primary" data-give-feedback="${r.id}">Give Feedback</button>`);
+  }
+  if (user.role === "admin") {
+    if (r.status === "Submitted" && r.reviewStatus !== "Accepted") {
+      actions.push(`<button class="btn btn-primary" data-approve="${r.id}">Accept Report</button>`);
+      actions.push(`<button class="btn btn-danger" data-reject-report="${r.id}">Reject Report</button>`);
+    }
+    if (r.status === "Submitted" && r.reviewStatus === "Accepted" && !r.assignedCrew) {
+      actions.push(`<button class="btn btn-secondary" data-assign="${r.id}">Assign Crew</button>`);
+    }
+    if (r.status === "Resolved") {
+      actions.push(`<button class="btn btn-primary" data-verify="${r.id}">Run Verification</button>`);
+    }
+  }
+  return actions.join("");
+}
+
+function attachActionHandlers() {
+  document.querySelectorAll("[data-give-feedback]").forEach((btn) => {
+    btn.addEventListener("click", () => openFeedback(btn.dataset.giveFeedback));
+  });
+  document.querySelectorAll("[data-assign]").forEach((btn) => {
+    btn.addEventListener("click", () => openAssign(btn.dataset.assign));
+  });
+  document.querySelectorAll("[data-verify]").forEach((btn) => {
+    btn.addEventListener("click", () => runVerification(btn.dataset.verify, btn));
+  });
+  document.querySelectorAll("[data-approve]").forEach((btn) => {
+    btn.addEventListener("click", () => reviewSubmittedReport(btn.dataset.approve, "approve", btn));
+  });
+  document.querySelectorAll("[data-reject-report]").forEach((btn) => {
+    btn.addEventListener("click", () => reviewSubmittedReport(btn.dataset.rejectReport, "reject", btn));
+  });
+}
+
+/* ---------- Feedback modal ---------- */
+const feedbackBackdrop = document.getElementById("feedbackBackdrop");
+let selectedResolved = null;
+let selectedRating = 0;
+
+function openFeedback(reportId) {
+  activeReportId = reportId;
+  selectedResolved = null;
+  selectedRating = 0;
+  document.getElementById("fbComment").value = "";
+  document.getElementById("afterPhotoField").style.display = "none";
+  document.getElementById("fbAfterPhoto").value = "";
+  document.getElementById("feedbackError").classList.remove("show");
+  document.querySelectorAll(".star").forEach((s) => s.classList.remove("active"));
+  document.getElementById("fbYes").classList.remove("btn-primary");
+  document.getElementById("fbNo").classList.remove("btn-primary");
+  feedbackBackdrop.classList.add("open");
+}
+document.getElementById("closeFeedback").addEventListener("click", () => feedbackBackdrop.classList.remove("open"));
+
+document.getElementById("fbYes").addEventListener("click", () => {
+  selectedResolved = true;
+  document.getElementById("fbYes").classList.add("btn-primary");
+  document.getElementById("fbNo").classList.remove("btn-primary");
+  document.getElementById("afterPhotoField").style.display = "block";
+});
+document.getElementById("fbNo").addEventListener("click", () => {
+  selectedResolved = false;
+  document.getElementById("fbNo").classList.add("btn-primary");
+  document.getElementById("fbYes").classList.remove("btn-primary");
+  document.getElementById("afterPhotoField").style.display = "none";
+});
+document.querySelectorAll("#ratingRow .star").forEach((star) => {
+  star.addEventListener("click", () => {
+    selectedRating = Number(star.dataset.val);
+    document.querySelectorAll("#ratingRow .star").forEach((s) => {
+      s.classList.toggle("active", Number(s.dataset.val) <= selectedRating);
+    });
+  });
+});
+
+document.getElementById("feedbackForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById("feedbackError");
+  errBox.classList.remove("show");
+  if (selectedResolved === null) {
+    errBox.textContent = "Please choose Yes or No.";
+    errBox.classList.add("show");
+    return;
+  }
+  const fileInput = document.getElementById("fbAfterPhoto");
+  if (selectedResolved && !fileInput.files[0]) {
+    errBox.textContent = "Please upload an after-cleaning photo to confirm resolution.";
+    errBox.classList.add("show");
+    return;
+  }
+
+  const btn = document.getElementById("fbSubmitBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+  try {
+    if (selectedResolved && fileInput.files[0]) {
+      const photo = await CC.fileToDataUrl(fileInput.files[0]);
+      await CC.api("upload-after-photo", { method: "POST", body: { reportId: activeReportId, photo } });
+    }
+    await CC.api("submit-feedback", {
+      method: "POST",
+      body: {
+        reportId: activeReportId,
+        resolved: selectedResolved,
+        rating: selectedRating || null,
+        comment: document.getElementById("fbComment").value.trim(),
+      },
+    });
+    feedbackBackdrop.classList.remove("open");
+    loadReports();
+  } catch (err) {
+    errBox.textContent = err.message || "Could not submit feedback.";
+    errBox.classList.add("show");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Submit Feedback";
+  }
+});
+
+/* ---------- Admin: assign crew ---------- */
+const assignBackdrop = document.getElementById("assignBackdrop");
+async function openAssign(reportId) {
+  activeReportId = reportId;
+  document.getElementById("assignError").classList.remove("show");
+  const select = document.getElementById("crewSelect");
+  select.innerHTML = `<option>Loading…</option>`;
+  assignBackdrop.classList.add("open");
+  try {
+    const { users } = await CC.api("get-users");
+    const crew = users.filter((u) => u.role === "crew");
+    select.innerHTML = crew.length
+      ? crew.map((c) => `<option value="${CC.escapeHtml(c.email)}">${CC.escapeHtml(c.name)} (${CC.escapeHtml(c.email)})</option>`).join("")
+      : `<option value="">No crew members yet — add one first</option>`;
+  } catch (err) {
+    select.innerHTML = `<option value="">Could not load crew</option>`;
+  }
+}
+document.getElementById("closeAssign").addEventListener("click", () => assignBackdrop.classList.remove("open"));
+document.getElementById("assignForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById("assignError");
+  const crewEmail = document.getElementById("crewSelect").value;
+  if (!crewEmail) {
+    errBox.textContent = "Select a crew member first.";
+    errBox.classList.add("show");
+    return;
+  }
+  try {
+    await CC.api("update-report", { method: "POST", body: { reportId: activeReportId, action: "assign", crewEmail } });
+    assignBackdrop.classList.remove("open");
+    loadReports();
+  } catch (err) {
+    errBox.textContent = err.message || "Could not assign crew.";
+    errBox.classList.add("show");
+  }
+});
+
+/* ---------- Admin: initial report moderation ---------- */
+async function reviewSubmittedReport(reportId, action, btn) {
+  const label = action === "approve" ? "accept this report and make it available for crew assignment" : "reject this report as a prank, fake, or invalid submission and permanently remove it";
+  if (!confirm(`Are you sure you want to ${label}?`)) return;
+  btn.disabled = true;
+  try {
+    await CC.api("update-report", { method: "POST", body: { reportId, action } });
+    loadReports();
+  } catch (err) {
+    alert(err.message || "Could not review report.");
+    btn.disabled = false;
+  }
+}
+
+/* ---------- Admin: run verification ---------- */
+async function runVerification(reportId, btn) {
+  btn.disabled = true;
+  btn.textContent = "Checking…";
+  try {
+    const { review } = await CC.api("verify-report", { method: "POST", body: { reportId, action: "review" } });
+    if (!review.readyForAdminConfirmation) {
+      alert(`Result: ${review.result}\n${review.note}\n\nMissing: ${Object.entries(review.checks).filter(([,v])=>!v).map(([k])=>k).join(", ")}`);
+      btn.disabled = false;
+      btn.textContent = "Run Verification";
+      return;
+    }
+    const decision = confirm(`Result: ${review.result}\n${review.note}\n\nOK = Accept and mark Verified\nCancel = Leave the report awaiting verification`);
+    if (decision) {
+      await CC.api("verify-report", { method: "POST", body: { reportId, action: "confirm" } });
+    }
+    loadReports();
+  } catch (err) {
+    alert(err.message || "Verification failed.");
+    btn.disabled = false;
+    btn.textContent = "Run Verification";
+  }
+}
+
+if (user) loadReports();
+</script>
+</body>
+</html>

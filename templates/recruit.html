@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crew Recruitment — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">CC</span> CleanConnect</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="report.html">Report an Issue</a>
+      <a href="reports.html">Reports</a>
+      <a href="recruit.html" class="active">Join the Crew</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1>Crew Recruitment</h1>
+        <p class="form-sub">Interested in helping keep your community clean? Submit your details for admin review.</p>
+      </div>
+    </div>
+
+    <form class="glass card" id="recruitForm" style="max-width:850px;margin:0 auto" novalidate>
+      <div class="alert alert-error" id="recruitError"></div>
+      <div class="alert alert-success" id="recruitSuccess"></div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="name">Full name</label>
+          <input type="text" id="name" required maxlength="100" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" required maxlength="160" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="age">Age</label>
+          <input type="number" id="age" required min="18" max="100" step="1">
+          <small>Applicants must be 18 or older.</small>
+        </div>
+        <div class="field">
+          <label for="birthplace">Birthplace / Hometown / Other Information</label>
+          <input type="text" id="birthplace" maxlength="150" placeholder="Birthplace, hometown, current area, or anything else you want to mention">
+          <small class="hint">Optional. You can enter your birthplace, hometown, current area, or any other relevant information.</small>
+        </div>
+        <div class="field">
+          <label for="education">Education</label>
+          <select id="education" required>
+            <option value="">Select education level</option>
+            <option value="Semi-schooled">Semi-schooled</option>
+            <option value="10th">10th</option>
+            <option value="12th">12th</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="description">Tell us about yourself</label>
+        <textarea id="description" rows="6" required maxlength="1500" placeholder="Tell the admin about your experience, strengths, availability, and why you want to join the cleanup crew."></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-block" id="submitBtn">Submit Recruitment Application</button>
+      <p class="auth-switch" style="margin-bottom:0">Your application will be reviewed by an administrator before a crew account is created.</p>
+    </form>
+  </div>
+</main>
+
+<footer>CleanConnect · Public Service Platform</footer>
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script>
+document.getElementById("recruitForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("submitBtn");
+  const error = document.getElementById("recruitError");
+  const success = document.getElementById("recruitSuccess");
+  error.classList.remove("show");
+  success.classList.remove("show");
+
+  const body = {
+    name: document.getElementById("name").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    password: document.getElementById("password").value,
+    age: Number(document.getElementById("age").value),
+    birthplace: document.getElementById("birthplace").value.trim(),
+    education: document.getElementById("education").value,
+    description: document.getElementById("description").value.trim()
+  };
+
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+  try {
+    await CC.api("submit-crew-application", { method: "POST", body });
+    document.getElementById("recruitForm").reset();
+    success.textContent = "Application submitted successfully. The admin will review your application.";
+    success.classList.add("show");
+  } catch (err) {
+    error.textContent = err.message || "Could not submit your application.";
+    error.classList.add("show");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Submit Recruitment Application";
+  }
+});
+</script>
+</body>
+</html>

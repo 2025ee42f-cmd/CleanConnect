@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">CC</span>
+      CleanConnect
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="report.html">Report an Issue</a>
+      <a href="reports.html">Reports</a>
+      <a href="recruit.html">Join the Crew</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <form class="glass auth-shell" id="registerForm" novalidate>
+      <h1 class="form-title">Create your account</h1>
+      <p class="form-sub">Sign up as a public user to report cleanliness issues in your area.</p>
+
+      <div class="alert alert-error" id="regError"></div>
+
+      <div class="field">
+        <label for="name">Full name</label>
+        <input type="text" id="name" required autocomplete="name">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required minlength="6" autocomplete="new-password">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="regBtn">Create Account</button>
+
+      <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
+      <p class="auth-switch">Crew accounts are created by an administrator.</p>
+    </form>
+  </div>
+</main>
+
+<footer>CleanConnect · Public Service Platform</footer>
+
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script>
+document.getElementById("registerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("regBtn");
+  const errBox = document.getElementById("regError");
+  errBox.classList.remove("show");
+
+  const name = document.getElementById("name").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  btn.disabled = true;
+  btn.textContent = "Creating account…";
+  try {
+    const { user } = await CC.api("auth-register", { method: "POST", body: { name, email, password } });
+    CC.setSession(user);
+    CC.redirectByRole(user.role);
+  } catch (err) {
+    errBox.textContent = err.message || "Registration failed.";
+    errBox.classList.add("show");
+    btn.disabled = false;
+    btn.textContent = "Create Account";
+  }
+});
+
+if (CC.isLoggedIn()) {
+  CC.redirectByRole(CC.getUser()?.role);
+}
+</script>
+</body>
+</html>

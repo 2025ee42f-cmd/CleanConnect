@@ -1,0 +1,16 @@
+{
+  "name": "cleanconnect",
+  "version": "3.0.0",
+  "description": "CleanConnect - Community cleanliness reporting platform",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "start": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^7.3.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}

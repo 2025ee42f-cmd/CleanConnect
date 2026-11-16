@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">CC</span> CleanConnect</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="reports.html">All Reports</a>
+      <a href="recruit.html">Crew Recruitment</a>
+      <a href="admin.html" class="active">Admin Dashboard</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <p class="form-sub">Manage reports, crew members, and recruitment applications.</p>
+      </div>
+      <a href="reports.html" class="btn btn-secondary">View All Reports</a>
+    </div>
+
+    <div id="applicationNotice" class="alert alert-success" style="margin-bottom:20px"></div>
+
+    <div class="grid-3" style="margin-bottom:26px">
+      <div class="glass stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total Reports</div></div>
+      <div class="glass stat-card"><div class="stat-num" id="statPending">0</div><div class="stat-label">Awaiting Verification</div></div>
+      <div class="glass stat-card"><div class="stat-num" id="statUsers">0</div><div class="stat-label">Registered Users</div></div>
+    </div>
+
+    <div class="glass card" style="margin-bottom:26px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Administrator Management</h2>
+          <p class="form-sub" style="margin-bottom:0">Create additional administrator accounts. Passwords are hashed on the server and are never returned to the browser.</p>
+        </div>
+        <span class="badge badge-inprogress" id="adminCount">0</span>
+      </div>
+      <div class="grid-2" style="margin-top:18px">
+        <div>
+          <h3 style="margin-top:0">Current Administrators</h3>
+          <div id="adminList"><div class="empty-state">Loading administrators…</div></div>
+        </div>
+        <div>
+          <h3 style="margin-top:0">Add Another Admin</h3>
+          <form id="addAdminForm">
+            <div class="alert alert-error" id="adminError"></div>
+            <div class="alert alert-success" id="adminSuccess"></div>
+            <div class="field"><label for="newAdminName">Name</label><input type="text" id="newAdminName" required autocomplete="name"></div>
+            <div class="field"><label for="newAdminEmail">Email</label><input type="email" id="newAdminEmail" required autocomplete="email"></div>
+            <div class="field"><label for="newAdminPassword">Password</label><input type="password" id="newAdminPassword" minlength="8" required autocomplete="new-password"></div>
+            <button type="submit" class="btn btn-primary btn-block">Add Administrator</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass card" style="margin-bottom:26px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Crew Recruitment Applications <span id="pendingBadge" class="badge badge-submitted">0 pending</span></h2>
+          <p class="form-sub" style="margin-bottom:0">New applications appear here automatically. Review the applicant details before approving or rejecting.</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary" id="refreshApplications" type="button">Refresh</button>
+          <button class="btn btn-danger" id="clearRejectedApplicationsBtn" type="button">Clear Rejected Applications</button>
+        </div>
+      </div>
+      <div id="applicationList" style="margin-top:18px"><div class="empty-state">Loading applications…</div></div>
+    </div>
+
+    <div class="glass card" style="margin-bottom:26px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Assign Work to Crew</h2>
+          <p class="form-sub" style="margin-bottom:0">Only reports accepted by Admin appear here. Crew and public accounts are kept separate.</p>
+        </div>
+        <button class="btn btn-secondary" id="refreshAssignment" type="button">Refresh</button>
+      </div>
+      <div class="grid-2" style="margin-top:18px">
+        <div class="field">
+          <label for="assignmentReport">Report</label>
+          <select id="assignmentReport"><option value="">Loading reports…</option></select>
+        </div>
+        <div class="field">
+          <label for="assignmentCrew">Crew member</label>
+          <select id="assignmentCrew"><option value="">Loading crew…</option></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="assignWorkBtn" type="button">Assign Work</button>
+      <div class="alert alert-error" id="assignmentError"></div>
+      <div class="alert alert-success" id="assignmentSuccess"></div>
+    </div>
+
+    <div class="glass card" style="margin-bottom:26px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0">Report Maintenance</h2>
+          <p class="form-sub" style="margin-bottom:0">Verified reports are fully completed. Use the option below to archive/remove them.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px">
+        <button class="btn btn-secondary" id="clearVerifiedBtn" type="button">Clear Verified Reports</button>
+      </div>
+      <div class="alert alert-success" id="reportMaintenanceSuccess"></div>
+      <div class="alert alert-error" id="reportMaintenanceError"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="glass card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div>
+            <h2 style="margin-top:0">Crew Members</h2>
+            <p class="form-sub">Only crew accounts appear here, making assignment and management easy.</p>
+          </div>
+          <span class="badge badge-inprogress" id="crewCount">0</span>
+        </div>
+        <div class="field"><input id="crewSearch" type="search" placeholder="Search crew by name or email…"></div>
+        <div id="crewList"><div class="empty-state">Loading crew…</div></div>
+
+        <hr style="border:0;border-top:1px solid var(--glass-border);margin:22px 0">
+        <h3>Add Crew Member Directly</h3>
+        <form id="addCrewForm">
+          <div class="alert alert-error" id="crewError"></div>
+          <div class="alert alert-success" id="crewSuccess"></div>
+          <div class="field"><label for="crewName">Name</label><input type="text" id="crewName" required></div>
+          <div class="field"><label for="crewEmail">Email</label><input type="email" id="crewEmail" required></div>
+          <div class="field"><label for="crewPassword">Temporary password</label><input type="password" id="crewPassword" minlength="6" required></div>
+          <button type="submit" class="btn btn-primary btn-block">Add Crew Member</button>
+        </form>
+      </div>
+
+      <div class="glass card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div>
+            <h2 style="margin-top:0">Public Members</h2>
+            <p class="form-sub">Only public accounts appear here. Use this list to review public accounts. Public accounts cannot be removed from this dashboard.</p>
+          </div>
+          <span class="badge badge-submitted" id="publicCount">0</span>
+        </div>
+        <div class="field"><input id="publicSearch" type="search" placeholder="Search public member by name or email…"></div>
+        <div id="publicList"><div class="empty-state">Loading public members…</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>CleanConnect · Public Service Platform</footer>
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script>
+const user = requireRole(["admin"]);
+let knownPendingApplications = null;
+
+function showApplicationNotice(count) {
+  const notice = document.getElementById("applicationNotice");
+  if (count > 0) {
+    notice.textContent = `🔔 ${count} crew recruitment application${count === 1 ? "" : "s"} waiting for your review.`;
+    notice.classList.add("show");
+  } else {
+    notice.textContent = "";
+    notice.classList.remove("show");
+  }
+}
+
+async function loadStats() {
+  try {
+    const { reports } = await CC.api("get-reports");
+    document.getElementById("statTotal").textContent = reports.length;
+    document.getElementById("statPending").textContent = reports.filter((r) => r.status === "Resolved").length;
+  } catch {}
+}
+
+let allCrew = [];
+let allPublic = [];
+let allAdmins = [];
+let allReports = [];
+
+function renderAdminList() {
+  const list = allAdmins.slice().sort((a, b) => {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return (a.createdAt < b.createdAt ? 1 : -1);
+  });
+  const currentIsPrimary = list.some(a => a.isPrimary && a.email === user?.email);
+  document.getElementById("adminCount").textContent = list.length;
+  document.getElementById("adminList").innerHTML = list.length ? list.map(u => {
+    const isSelf = u.email === user?.email;
+    const canRemove = currentIsPrimary && !u.isPrimary && !isSelf;
+    return `
+    <div style="padding:13px 0;border-bottom:1px solid var(--glass-border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:600">${CC.escapeHtml(u.name)} ${u.isPrimary ? '<span class="badge badge-verified" style="margin-left:6px">Main Admin</span>' : '<span class="badge badge-inprogress" style="margin-left:6px">Admin</span>'}</div>
+          <div style="font-size:.8rem;color:var(--text-2)">${CC.escapeHtml(u.email)}</div>
+          <div style="font-size:.75rem;color:var(--text-2);margin-top:6px">${u.isPrimary ? 'Primary account is controlled by Netlify environment variables' : `Administrator · Added ${u.createdAt ? CC.timeAgo(u.createdAt) : ""}`}${isSelf ? " · You" : ""}</div>
+        </div>
+        ${canRemove ? `<button class="btn btn-danger" data-remove-admin="${CC.escapeHtml(u.email)}" type="button">Remove</button>` : ''}
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty-state">No administrators found.</div>`;
+
+  document.querySelectorAll('#adminList [data-remove-admin]').forEach(btn => {
+    btn.addEventListener('click', () => removeAdmin(btn.dataset.removeAdmin));
+  });
+}
+
+async function removeAdmin(email) {
+  if (!confirm(`Remove administrator ${email}? This permanently deletes that administrator login account.`)) return;
+  try {
+    const result = await CC.api("remove-admin", { method: "POST", body: { email } });
+    alert(result.message || "Administrator removed successfully.");
+    await loadUsers();
+  } catch (err) {
+    alert(err.message || "Could not remove administrator.");
+  }
+}
+
+function renderCrewList() {
+  const q = document.getElementById("crewSearch").value.trim().toLowerCase();
+  const list = allCrew.filter(u => `${u.name} ${u.email}`.toLowerCase().includes(q));
+  document.getElementById("crewCount").textContent = allCrew.length;
+  document.getElementById("crewList").innerHTML = list.length ? list.map(u => `
+    <div style="padding:13px 0;border-bottom:1px solid var(--glass-border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div><div style="font-weight:600">${CC.escapeHtml(u.name)}</div><div style="font-size:.8rem;color:var(--text-2)">${CC.escapeHtml(u.email)}</div></div>
+        <button class="btn btn-danger" data-remove-user="${CC.escapeHtml(u.email)}" data-remove-role="crew" type="button">Remove</button>
+      </div>
+      ${(u.age || u.education || u.birthplace) ? `<div style="font-size:.8rem;color:var(--text-2);margin-top:7px">${u.age ? `Age: ${CC.escapeHtml(String(u.age))}` : ""}${u.education ? ` · Education: ${CC.escapeHtml(u.education)}` : ""}${u.birthplace ? ` · Hometown: ${CC.escapeHtml(u.birthplace)}` : ""}</div>` : ""}
+    </div>`).join("") : `<div class="empty-state">No matching crew members.</div>`;
+  document.querySelectorAll('#crewList [data-remove-user]').forEach(btn => btn.addEventListener('click', () => removeUser(btn.dataset.removeUser, 'crew')));
+}
+
+function renderPublicList() {
+  const q = document.getElementById("publicSearch").value.trim().toLowerCase();
+  const list = allPublic.filter(u => `${u.name} ${u.email}`.toLowerCase().includes(q));
+  document.getElementById("publicCount").textContent = allPublic.length;
+  document.getElementById("publicList").innerHTML = list.length ? list.map(u => `
+    <div style="padding:13px 0;border-bottom:1px solid var(--glass-border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div><div style="font-weight:600">${CC.escapeHtml(u.name)}</div><div style="font-size:.8rem;color:var(--text-2)">${CC.escapeHtml(u.email)}</div></div>
+
+      </div>
+      <div style="font-size:.75rem;color:var(--text-2);margin-top:6px">Joined ${u.createdAt ? CC.timeAgo(u.createdAt) : ""}</div>
+    </div>`).join("") : `<div class="empty-state">No matching public members.</div>`;
+}
+
+async function loadUsers() {
+  try {
+    const { users } = await CC.api("get-users");
+    allAdmins = users.filter(u => u.role === "admin");
+    allCrew = users.filter(u => u.role === "crew");
+    allPublic = users.filter(u => u.role === "public");
+    document.getElementById("statUsers").textContent = allCrew.length + allPublic.length;
+    renderAdminList();
+    renderCrewList();
+    renderPublicList();
+    populateCrewSelect();
+  } catch (err) {
+    document.getElementById("crewList").innerHTML = `<div class="empty-state">Could not load crew: ${CC.escapeHtml(err.message)}</div>`;
+    document.getElementById("publicList").innerHTML = `<div class="empty-state">Could not load public members: ${CC.escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function removeUser(email, role) {
+  const label = role === "public" ? "public member" : "crew member";
+  if (!confirm(`Remove ${label} ${email}? This will permanently delete their CleanConnect login account.`)) return;
+  try { await CC.api("remove-crew", { method: "POST", body: { email } }); await loadUsers(); }
+  catch (err) { alert(err.message || `Could not remove ${label}.`); }
+}
+
+function populateCrewSelect() {
+  const select = document.getElementById("assignmentCrew");
+  select.innerHTML = allCrew.length ? `<option value="">Select crew member…</option>` + allCrew.map(u => `<option value="${CC.escapeHtml(u.email)}">${CC.escapeHtml(u.name)} — ${CC.escapeHtml(u.email)}</option>`).join("") : `<option value="">No crew members available</option>`;
+}
+
+async function loadAssignmentReports() {
+  try {
+    const { reports } = await CC.api("get-reports");
+    allReports = reports;
+    const select = document.getElementById("assignmentReport");
+    const options = reports.filter(r => !r.assignedCrew && r.status === "Submitted" && r.reviewStatus === "Accepted");
+    select.innerHTML = options.length ? `<option value="">Select report…</option>` + options.map(r => `<option value="${CC.escapeHtml(r.id)}">${CC.escapeHtml(r.issueType)} — ${CC.escapeHtml(r.location)} (${CC.escapeHtml(r.status)})</option>`).join("") : `<option value="">No unassigned active reports</option>`;
+  } catch (err) { document.getElementById("assignmentReport").innerHTML = `<option value="">Could not load reports</option>`; }
+}
+
+async function assignWork() {
+  const reportId = document.getElementById("assignmentReport").value;
+  const crewEmail = document.getElementById("assignmentCrew").value;
+  const err = document.getElementById("assignmentError"), ok = document.getElementById("assignmentSuccess");
+  err.classList.remove("show"); ok.classList.remove("show");
+  if (!reportId || !crewEmail) { err.textContent = "Select both a report and a crew member."; err.classList.add("show"); return; }
+  try {
+    await CC.api("update-report", { method: "POST", body: { reportId, action: "assign", crewEmail } });
+    ok.textContent = "Work assigned successfully."; ok.classList.add("show");
+    await loadAssignmentReports();
+  } catch (e) { err.textContent = e.message || "Could not assign work."; err.classList.add("show"); }
+}
+
+
+async function clearReportsByStatus(status, buttonId) {
+  const config = {
+    Verified: {
+      label: "verified",
+      endpoint: "clear-verified-reports",
+      question: "Clear all reports that have completed final verification? This permanently removes those report records."
+    },
+    Resolved: {
+      label: "resolved",
+      endpoint: "clear-resolved-reports",
+      question: "Clear all reports currently in the Resolved section? This permanently removes those report records and their feedback."
+    }
+  }[status];
+  if (!config) return;
+  if (!confirm(config.question)) return;
+
+  const btn = document.getElementById(buttonId);
+  const success = document.getElementById("reportMaintenanceSuccess");
+  const error = document.getElementById("reportMaintenanceError");
+  success.classList.remove("show");
+  error.classList.remove("show");
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Clearing…";
+
+  try {
+    const result = await CC.api(config.endpoint, { method: "POST", body: {} });
+    success.textContent = `${result.deletedCount || 0} ${config.label} report${result.deletedCount === 1 ? "" : "s"} cleared.`;
+    success.classList.add("show");
+    await loadStats();
+    await loadAssignmentReports();
+  } catch (err) {
+    error.textContent = err.message || `Could not clear ${config.label} reports.`;
+    error.classList.add("show");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function clearRejectedApplications() {
+  if (!confirm("Clear all rejected crew recruitment applications? This permanently removes only applications already marked rejected. Pending and approved applications will remain.")) return;
+
+  const btn = document.getElementById("clearRejectedApplicationsBtn");
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Clearing…";
+
+  try {
+    const result = await CC.api("clear-rejected-crew-applications", { method: "POST", body: {} });
+    alert(`${result.deletedCount || 0} rejected recruitment application${result.deletedCount === 1 ? "" : "s"} cleared.`);
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || "Could not clear rejected applications.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function renderApplications(applications) {
+  const box = document.getElementById("applicationList");
+  const pending = applications.filter(a => a.status === "pending");
+  document.getElementById("pendingBadge").textContent = `${pending.length} pending`;
+  showApplicationNotice(pending.length);
+
+  if (!applications.length) {
+    box.innerHTML = `<div class="empty-state">No recruitment applications have been submitted.</div>`;
+    return;
+  }
+
+  box.innerHTML = applications.map(a => `
+    <div class="glass" style="padding:18px;margin-top:12px;border:1px solid var(--glass-border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:15px;flex-wrap:wrap">
+        <div>
+          <h3 style="margin:0 0 5px">${CC.escapeHtml(a.name)}</h3>
+          <div style="font-size:.85rem;color:var(--text-2)">${CC.escapeHtml(a.email)} · Applied ${CC.timeAgo(a.createdAt)}</div>
+        </div>
+        <span class="badge ${a.status === "pending" ? "badge-submitted" : a.status === "approved" ? "badge-verified" : "badge-resolved"}">${CC.escapeHtml(a.status)}</span>
+      </div>
+      <div class="grid-2" style="margin-top:15px">
+        <div><strong>Age:</strong> ${CC.escapeHtml(String(a.age))}</div>
+        <div><strong>Education:</strong> ${CC.escapeHtml(a.education)}</div>
+        ${a.birthplace ? `<div><strong>Birthplace / Hometown / Other:</strong> ${CC.escapeHtml(a.birthplace)}</div>` : ""}
+        <div><strong>Application ID:</strong> ${CC.escapeHtml(a.id)}</div>
+      </div>
+      <div style="margin-top:14px">
+        <strong>About the applicant</strong>
+        <p style="white-space:pre-wrap;margin-bottom:0">${CC.escapeHtml(a.description)}</p>
+      </div>
+      ${a.status === "pending" ? `
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn btn-primary" data-approve="${CC.escapeHtml(a.id)}" type="button">Approve & Create Crew Account</button>
+          <button class="btn btn-secondary" data-reject="${CC.escapeHtml(a.id)}" type="button">Reject</button>
+        </div>` : `
+        <div style="font-size:.8rem;color:var(--text-2);margin-top:12px">Reviewed by ${CC.escapeHtml(a.reviewedBy || "admin")} ${a.reviewedAt ? `· ${CC.timeAgo(a.reviewedAt)}` : ""}</div>`
+      }
+    </div>
+  `).join("");
+
+  box.querySelectorAll("[data-approve]").forEach(btn => {
+    btn.addEventListener("click", () => reviewApplication(btn.dataset.approve, "approve"));
+  });
+  box.querySelectorAll("[data-reject]").forEach(btn => {
+    btn.addEventListener("click", () => reviewApplication(btn.dataset.reject, "reject"));
+  });
+}
+
+async function loadApplications() {
+  const box = document.getElementById("applicationList");
+  try {
+    const { applications, pendingCount } = await CC.api("get-crew-applications");
+    if (knownPendingApplications !== null && pendingCount > knownPendingApplications) {
+      showApplicationNotice(pendingCount);
+    }
+    knownPendingApplications = pendingCount;
+    renderApplications(applications);
+  } catch (err) {
+    box.innerHTML = `<div class="empty-state">Could not load applications: ${CC.escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function reviewApplication(applicationId, action) {
+  const verb = action === "approve" ? "approve this applicant and create a crew login account" : "reject this application";
+  if (!confirm(`Are you sure you want to ${verb}?`)) return;
+  try {
+    const result = await CC.api("review-crew-application", {
+      method: "POST",
+      body: { applicationId, action }
+    });
+    alert(result.message);
+    await loadApplications();
+    if (action === "approve") await loadUsers();
+  } catch (err) {
+    alert(err.message || "Could not review application.");
+  }
+}
+
+document.getElementById("refreshApplications").addEventListener("click", loadApplications);
+
+document.getElementById("addAdminForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById("adminError");
+  const okBox = document.getElementById("adminSuccess");
+  errBox.classList.remove("show");
+  okBox.classList.remove("show");
+  const name = document.getElementById("newAdminName").value.trim();
+  const email = document.getElementById("newAdminEmail").value.trim();
+  const password = document.getElementById("newAdminPassword").value;
+  try {
+    await CC.api("add-admin", { method: "POST", body: { name, email, password } });
+    okBox.textContent = `Administrator "${name}" added successfully.`;
+    okBox.classList.add("show");
+    document.getElementById("addAdminForm").reset();
+    await loadUsers();
+  } catch (err) {
+    errBox.textContent = err.message || "Could not add administrator.";
+    errBox.classList.add("show");
+  }
+});
+
+document.getElementById("addCrewForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById("crewError");
+  const okBox = document.getElementById("crewSuccess");
+  errBox.classList.remove("show");
+  okBox.classList.remove("show");
+
+  const name = document.getElementById("crewName").value.trim();
+  const email = document.getElementById("crewEmail").value.trim();
+  const password = document.getElementById("crewPassword").value;
+
+  try {
+    await CC.api("add-crew", { method: "POST", body: { name, email, password } });
+    okBox.textContent = `Crew member "${name}" added.`;
+    okBox.classList.add("show");
+    document.getElementById("addCrewForm").reset();
+    loadUsers();
+  } catch (err) {
+    errBox.textContent = err.message || "Could not add crew member.";
+    errBox.classList.add("show");
+  }
+});
+
+document.getElementById("crewSearch").addEventListener("input", renderCrewList);
+document.getElementById("publicSearch").addEventListener("input", renderPublicList);
+document.getElementById("assignWorkBtn").addEventListener("click", assignWork);
+document.getElementById("refreshAssignment").addEventListener("click", loadAssignmentReports);
+document.getElementById("clearVerifiedBtn").addEventListener("click", () => clearReportsByStatus("Verified", "clearVerifiedBtn"));
+document.getElementById("clearRejectedApplicationsBtn").addEventListener("click", clearRejectedApplications);
+
+if (user) {
+  loadStats();
+  loadUsers();
+  loadAssignmentReports();
+  loadApplications();
+  setInterval(loadApplications, 20000);
+}
+</script>
+</body>
+</html>

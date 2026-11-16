@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crew Dashboard — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body class="crew-page">
+
+<nav class="navbar crew-navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">CC</span>
+      CleanConnect
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="crew.html" class="active">Crew Dashboard</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <div class="page-header">
+      <h1>Crew Dashboard</h1>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:26px">
+      <div class="glass stat-card"><div class="stat-num" id="statAssigned">0</div><div class="stat-label">Assigned to me</div></div>
+      <div class="glass stat-card"><div class="stat-num" id="statInProgress">0</div><div class="stat-label">In Progress</div></div>
+      <div class="glass stat-card"><div class="stat-num" id="statResolved">0</div><div class="stat-label">Resolved by me</div></div>
+    </div>
+
+    <div class="filter-row">
+      <button class="chip active" data-scope="mine">My Assigned Work</button>
+      <button class="chip" data-scope="all">All Submitted (unassigned)</button>
+    </div>
+
+    <div id="crewReportList"></div>
+  </div>
+</main>
+
+<!-- Resolve modal -->
+<div class="modal-backdrop" id="resolveBackdrop">
+  <form class="glass modal" id="resolveForm">
+    <button type="button" class="modal-close" id="closeResolve">&times;</button>
+    <h2 class="form-title">Mark cleanup complete</h2>
+    <p class="form-sub">Upload after-cleaning evidence to mark this report Resolved.</p>
+    <div class="alert alert-error" id="resolveError"></div>
+    <div class="field">
+      <label for="afterPhoto">After-cleaning photo</label>
+      <input type="file" id="afterPhoto" accept="image/*" required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-block">Mark Resolved</button>
+  </form>
+</div>
+
+<footer>CleanConnect · Public Service Platform</footer>
+
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script src="static/js/reports-ui.js"></script>
+<script>
+const user = requireRole(["crew"]);
+let scope = "mine";
+let activeReportId = null;
+
+document.querySelectorAll(".filter-row .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".filter-row .chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    scope = chip.dataset.scope;
+    loadReports();
+  });
+});
+
+async function loadReports() {
+  const list = document.getElementById("crewReportList");
+  list.innerHTML = `<div class="empty-state">Loading…</div>`;
+  try {
+    const qs = scope === "mine" ? "?scope=mine" : "?status=Submitted";
+    const { reports: all } = await CC.api(`get-reports${qs}`);
+    const reports = scope === "mine" ? all : all.filter((r) => !r.assignedCrew);
+
+    updateStats();
+
+    if (!reports.length) {
+      list.innerHTML = `<div class="glass empty-state"><div class="e-icon">🧹</div>${scope === "mine" ? "No reports assigned to you yet." : "No unassigned reports right now."}</div>`;
+      return;
+    }
+    list.innerHTML = reports.map((r) => ReportsUI.renderReportCard(r, actionsFor(r))).join("");
+    attachHandlers();
+  } catch (err) {
+    list.innerHTML = `<div class="glass empty-state">Could not load reports: ${CC.escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function updateStats() {
+  try {
+    const { reports: mine } = await CC.api("get-reports?scope=mine");
+    document.getElementById("statAssigned").textContent = mine.length;
+    document.getElementById("statInProgress").textContent = mine.filter((r) => r.status === "In Progress").length;
+    document.getElementById("statResolved").textContent = mine.filter((r) => ["Resolved", "Verified"].includes(r.status)).length;
+  } catch { /* ignore */ }
+}
+
+function actionsFor(r) {
+  const actions = [];
+  const mineOrUnassigned = !r.assignedCrew || r.assignedCrew.email === user.email;
+  if (r.status === "Submitted" && mineOrUnassigned) {
+    actions.push(`<button class="btn btn-primary" data-start="${r.id}">Start Work</button>`);
+  }
+  if (r.status === "In Progress" && r.assignedCrew?.email === user.email) {
+    actions.push(`<button class="btn btn-primary" data-resolve="${r.id}">Mark Cleanup Complete</button>`);
+  }
+  return actions.join("");
+}
+
+function attachHandlers() {
+  document.querySelectorAll("[data-start]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "Starting…";
+      try {
+        await CC.api("update-report", { method: "POST", body: { reportId: btn.dataset.start, action: "start" } });
+        loadReports();
+      } catch (err) {
+        alert(err.message || "Could not start work.");
+        btn.disabled = false;
+        btn.textContent = "Start Work";
+      }
+    });
+  });
+  document.querySelectorAll("[data-resolve]").forEach((btn) => {
+    btn.addEventListener("click", () => openResolve(btn.dataset.resolve));
+  });
+}
+
+const resolveBackdrop = document.getElementById("resolveBackdrop");
+function openResolve(reportId) {
+  activeReportId = reportId;
+  document.getElementById("resolveError").classList.remove("show");
+  document.getElementById("afterPhoto").value = "";
+  resolveBackdrop.classList.add("open");
+}
+document.getElementById("closeResolve").addEventListener("click", () => resolveBackdrop.classList.remove("open"));
+
+document.getElementById("resolveForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById("resolveError");
+  const file = document.getElementById("afterPhoto").files[0];
+  if (!file) {
+    errBox.textContent = "Please select an after-cleaning photo.";
+    errBox.classList.add("show");
+    return;
+  }
+  try {
+    const afterPhoto = await CC.fileToDataUrl(file);
+    await CC.api("update-report", { method: "POST", body: { reportId: activeReportId, action: "resolve", afterPhoto } });
+    resolveBackdrop.classList.remove("open");
+    loadReports();
+  } catch (err) {
+    errBox.textContent = err.message || "Could not resolve report.";
+    errBox.classList.add("show");
+  }
+});
+
+if (user) loadReports();
+</script>
+</body>
+</html>

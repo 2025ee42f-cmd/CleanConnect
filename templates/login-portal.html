@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Select Login — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+<style>
+.role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:30px}
+.role-card{text-align:center;padding:35px;cursor:pointer;text-decoration:none;color:inherit}
+.role-card:hover{transform:translateY(-5px)}
+.role-icon{font-size:45px;margin-bottom:15px}
+</style>
+</head>
+<body>
+<nav class="navbar">
+<div class="container navbar-inner">
+<a class="brand" href="index.html"><span class="brand-mark">CC</span> CleanConnect</a>
+<div class="nav-links"><a href="index.html">Home</a></div>
+</div>
+</nav>
+
+<main class="page">
+<div class="container">
+<section class="glass auth-shell">
+<h1 class="form-title">Choose Login Type</h1>
+<p class="form-sub">Select your account category to continue.</p>
+
+<div class="role-grid">
+<a class="glass role-card" href="login.html">
+<div class="role-icon">👥</div>
+<h2>Public Member</h2>
+<p>Report cleanliness issues and track community improvements.</p>
+</a>
+
+<a class="glass role-card" href="login.html?role=crew">
+<div class="role-icon">🧹</div>
+<h2>Crew Member</h2>
+<p>Manage assigned cleaning tasks and upload completion proof.</p>
+</a>
+
+<a class="glass role-card" href="login.html?role=admin">
+<div class="role-icon">🛡️</div>
+<h2>Admin</h2>
+<p>Manage reports, users, crews and system verification.</p>
+</a>
+</div>
+</section>
+</div>
+</main>
+<footer>CleanConnect · Public Service Platform</footer>
+</body>
+</html>

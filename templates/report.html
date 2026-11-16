@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report an Issue — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">CC</span>
+      CleanConnect
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="report.html" class="active">Report an Issue</a>
+      <a href="reports.html">Reports</a>
+      <a href="recruit.html">Join the Crew</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <form class="glass auth-shell" id="reportForm" style="max-width:560px" novalidate>
+      <h1 class="form-title">Report a cleanliness issue</h1>
+      <p class="form-sub">Give as much detail as you can — accurate location and a clear photo help crews resolve issues faster.</p>
+
+      <div class="alert alert-error" id="reportError"></div>
+      <div class="alert alert-success" id="reportSuccess"></div>
+
+      <div class="field">
+        <label for="issueType">Issue Type</label>
+        <select id="issueType" required>
+          <option value="">Select an issue type…</option>
+          <option>Overflowing garbage</option>
+          <option>Illegal dumping</option>
+          <option>Road waste</option>
+          <option>Drain blockage</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="location">Location</label>
+        <div class="location-input-wrap">
+          <input type="text" id="location" placeholder="e.g. MG Road, near Bus Stop #4" required autocomplete="street-address">
+          <button type="button" class="btn btn-secondary gps-btn" id="gpsBtn" title="Use my current GPS location">
+            <svg class="gps-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2"/></svg><span class="gps-label">Use my location</span>
+          </button>
+        </div>
+        <div class="location-status" id="locationStatus" role="status" aria-live="polite"></div>
+        <a class="map-link" id="mapLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none">Open selected location in Google Maps ↗</a>
+        <small class="field-hint">You can use GPS for a quick location, or type/edit the location manually if GPS is inaccurate.</small>
+      </div>
+
+      <div class="field">
+        <label for="description">Description</label>
+        <textarea id="description" placeholder="Describe what you see…" required></textarea>
+      </div>
+
+      <div class="field">
+        <label for="photo">Before Photo</label>
+        <input type="file" id="photo" accept="image/*" required>
+        <img id="photoPreview" style="display:none;max-width:160px;border-radius:12px;margin-top:10px;border:1px solid var(--glass-border)">
+      </div>
+
+      <button type="submit" class="btn submit-report-btn btn-block" id="submitBtn">+ Submit Report</button>
+    </form>
+  </div>
+</main>
+
+<footer>CleanConnect · Public Service Platform</footer>
+
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script>
+requireRole(["public", "admin"]);
+
+const photoInput = document.getElementById("photo");
+const preview = document.getElementById("photoPreview");
+const locationInput = document.getElementById("location");
+const gpsBtn = document.getElementById("gpsBtn");
+const locationStatus = document.getElementById("locationStatus");
+const mapLink = document.getElementById("mapLink");
+
+function setLocationStatus(message, type = "") {
+  locationStatus.textContent = message;
+  locationStatus.className = `location-status${type ? ` ${type}` : ""}`;
+}
+
+function showGoogleMapsLocation(latitude, longitude) {
+  mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
+  mapLink.style.display = "inline-flex";
+}
+
+gpsBtn.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    setLocationStatus("GPS is not supported by this browser. Please type the location manually.", "error");
+    return;
+  }
+
+  gpsBtn.disabled = true;
+  gpsBtn.innerHTML = `<span class="spinner"></span> Finding location…`;
+  setLocationStatus("Requesting your current location…");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      locationInput.value = `Current location (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`;
+      showGoogleMapsLocation(latitude, longitude);
+      setLocationStatus(`GPS location found (accuracy about ${Math.round(accuracy)} m). You can edit it manually if needed.`, "success");
+      gpsBtn.disabled = false;
+      gpsBtn.innerHTML = `<svg class="gps-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2"/></svg><span class="gps-label">Use my location</span>`;
+    },
+    (error) => {
+      let message = "Could not get your location. Please type the location manually.";
+      if (error.code === error.PERMISSION_DENIED) message = "Location permission was denied. Allow location access in your browser, or type the location manually.";
+      if (error.code === error.POSITION_UNAVAILABLE) message = "Your location is currently unavailable. Please try again or type the location manually.";
+      if (error.code === error.TIMEOUT) message = "Location request timed out. Please try again or type the location manually.";
+      setLocationStatus(message, "error");
+      gpsBtn.disabled = false;
+      gpsBtn.innerHTML = `<svg class="gps-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2"/></svg><span class="gps-label">Use my location</span>`;
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+});
+
+locationInput.addEventListener("input", () => {
+  // Manual edits are intentionally allowed; a typed location takes priority.
+  if (!locationInput.value.trim()) {
+    mapLink.style.display = "none";
+    setLocationStatus("");
+  }
+});
+photoInput.addEventListener("change", async () => {
+  const file = photoInput.files[0];
+  if (!file) { preview.style.display = "none"; return; }
+  preview.src = await CC.fileToDataUrl(file);
+  preview.style.display = "block";
+});
+
+document.getElementById("reportForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById("reportError");
+  const okBox = document.getElementById("reportSuccess");
+  errBox.classList.remove("show");
+  okBox.classList.remove("show");
+
+  const issueType = document.getElementById("issueType").value;
+  const location = document.getElementById("location").value.trim();
+  const description = document.getElementById("description").value.trim();
+  const file = photoInput.files[0];
+
+  if (!issueType) return showErr("Please select an issue type.");
+  if (!location) return showErr("Location is required.");
+  if (!description) return showErr("Description is required.");
+  if (!file) return showErr("Please select a before photo.");
+
+  function showErr(msg) {
+    errBox.textContent = msg;
+    errBox.classList.add("show");
+  }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Submitting…`;
+
+  try {
+    const photo = await CC.fileToDataUrl(file);
+    await CC.api("create-report", {
+      method: "POST",
+      body: { issueType, location, description, photo },
+    });
+    okBox.textContent = "Report submitted successfully";
+    okBox.classList.add("show");
+    document.getElementById("reportForm").reset();
+    preview.style.display = "none";
+    setTimeout(() => (window.location.href = "reports.html"), 1200);
+  } catch (err) {
+    showErr(err.message || "Could not submit report.");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "+ Submit Report";
+  }
+});
+</script>
+</body>
+</html>

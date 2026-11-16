@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eco Points — CleanConnect</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">CC</span>
+      CleanConnect
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="report.html">Report an Issue</a>
+      <a href="reports.html">Reports</a>
+      <a href="recruit.html">Join the Crew</a>
+    </div>
+    <div id="navAuthSlot"></div>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="container">
+    <div class="page-header">
+      <h1>Eco Points</h1>
+    </div>
+
+    <p class="eco-note" style="margin-bottom:20px">
+      Eco Points reward real, community-verified cleanup — not just filing reports. You earn points
+      when an admin confirms a report of yours as <strong>Verified</strong>, with bonuses for fast
+      resolutions and for keeping up a weekly streak. Rewards below are shown for what's ahead —
+      coupons are marked <strong>Coming soon</strong> while we finish partner integrations.
+    </p>
+
+    <div id="ecoLoading" class="empty-state">Loading your eco points…</div>
+    <div id="ecoError" class="alert alert-error" style="display:none"></div>
+
+    <div id="ecoContent" style="display:none">
+      <div class="glass eco-hero">
+        <div class="eco-level-icon" id="levelIcon">🌱</div>
+        <div class="eco-hero-main">
+          <div class="eco-level-name" id="levelName">Seedling</div>
+          <div class="eco-points-num" id="pointsNum">0 points</div>
+          <div class="eco-progress-track"><div class="eco-progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="eco-progress-label" id="progressLabel"></div>
+        </div>
+        <div class="eco-streak-box">
+          <div class="eco-streak-num" id="streakNum">0</div>
+          <div class="eco-streak-label">week streak<br>(best: <span id="streakBest">0</span>)</div>
+        </div>
+      </div>
+
+      <h2 style="margin:30px 0 14px;font-size:1.15rem">Badges</h2>
+      <div class="eco-badges-grid" id="badgesGrid"></div>
+
+      <h2 style="margin:30px 0 14px;font-size:1.15rem">Rewards</h2>
+      <div class="eco-rewards-grid" id="rewardsGrid"></div>
+
+      <h2 style="margin:30px 0 14px;font-size:1.15rem">How you've earned points</h2>
+      <div class="glass" style="padding:8px 20px" id="historyList"></div>
+    </div>
+  </div>
+</main>
+
+<footer>CleanConnect · Public Service Platform</footer>
+
+<script src="static/js/api.js"></script>
+<script src="static/js/navbar.js"></script>
+<script>
+requireRole(["public"]);
+
+async function loadEcoPoints() {
+  const loading = document.getElementById("ecoLoading");
+  const errBox = document.getElementById("ecoError");
+  const content = document.getElementById("ecoContent");
+  try {
+    const data = await CC.api("get-eco-points");
+    loading.style.display = "none";
+    content.style.display = "block";
+    renderHero(data);
+    renderBadges(data);
+    renderRewards(data);
+    renderHistory(data);
+  } catch (err) {
+    loading.style.display = "none";
+    errBox.textContent = "Could not load your eco points: " + err.message;
+    errBox.style.display = "block";
+  }
+}
+
+function renderHero(data) {
+  document.getElementById("levelIcon").textContent = data.level.icon;
+  document.getElementById("levelName").textContent = data.level.name;
+  document.getElementById("pointsNum").textContent = `${data.totalPoints} points`;
+  document.getElementById("progressFill").style.width = `${data.progressPercent}%`;
+  document.getElementById("progressLabel").textContent = data.nextLevel
+    ? `${data.pointsToNext} points to ${data.nextLevel.icon} ${data.nextLevel.name}`
+    : "Highest level reached — thank you for keeping your community clean!";
+  document.getElementById("streakNum").textContent = data.streak.current;
+  document.getElementById("streakBest").textContent = data.streak.longest;
+}
+
+function renderBadges(data) {
+  const earnedIds = new Set(data.badges.map((b) => b.id));
+  const allBadgeDefs = {
+    first_verified: { name: "First Cleanup", icon: "🌱", desc: "Got your first report Verified." },
+    century_club: { name: "Century Club", icon: "💯", desc: "Earned 100+ eco points." },
+    streak_keeper: { name: "Streak Keeper", icon: "🔥", desc: "4 consecutive weeks with a Verified report." },
+    eco_champion: { name: "Eco Champion", icon: "🏆", desc: "Earned 700+ eco points." },
+  };
+  const grid = document.getElementById("badgesGrid");
+  grid.innerHTML = Object.entries(allBadgeDefs).map(([id, b]) => {
+    const earned = earnedIds.has(id);
+    return `
+      <div class="glass eco-badge-card ${earned ? "" : "locked"}">
+        <div class="eco-badge-icon">${b.icon}</div>
+        <div class="eco-badge-name">${CC.escapeHtml(b.name)}</div>
+        <div class="eco-badge-desc">${earned ? CC.escapeHtml(b.desc) : "Locked"}</div>
+      </div>`;
+  }).join("");
+}
+
+function renderRewards(data) {
+  const grid = document.getElementById("rewardsGrid");
+  grid.innerHTML = data.rewardsCatalog.map((r) => {
+    const unlocked = data.totalPoints >= r.pointsRequired;
+    return `
+      <div class="glass eco-reward-card ${r.comingSoon ? "locked-reward" : ""}">
+        ${r.comingSoon ? `<span class="eco-reward-soon">Coming soon</span>` : ""}
+        <div class="eco-reward-icon">${r.icon}</div>
+        <div class="eco-reward-name">${CC.escapeHtml(r.name)}</div>
+        <div class="eco-reward-cost">${r.pointsRequired} points</div>
+        ${unlocked ? `<div class="eco-reward-unlocked-tag">✓ You've unlocked this tier</div>` : ""}
+      </div>`;
+  }).join("");
+}
+
+function renderHistory(data) {
+  const list = document.getElementById("historyList");
+  if (!data.history.length) {
+    list.innerHTML = `<div class="empty-state">No eco points yet — get a report Verified to start earning.</div>`;
+    return;
+  }
+  list.innerHTML = data.history.map((h) => `
+    <div class="eco-history-item">
+      <div>
+        <div>Report ${CC.escapeHtml(h.reportId.slice(0, 8))}… — ${CC.timeAgo(h.at)}</div>
+        <div class="eco-history-reasons">${h.reasons.map(CC.escapeHtml).join(" · ")}</div>
+      </div>
+      <div class="eco-history-points ${h.points === 0 ? "zero" : ""}">${h.points > 0 ? "+" : ""}${h.points}</div>
+    </div>
+  `).join("");
+}
+
+loadEcoPoints();
+</script>
+</body>
+</html>
