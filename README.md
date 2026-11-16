@@ -8,6 +8,17 @@
 
 ---
 
+## 📸 Application Screenshots
+
+### Main Dashboard
+![CleanConnect Dashboard](screenshots/Dashboard.png)
+
+### Crew Recruitment
+![Crew Recruitment](screenshots/Crew%20Recruitment.png)
+
+---
+
+
 ## 📌 About the Project
 
 Illegal waste dumping, including construction debris, electronic waste and other discarded materials, can create environmental and public health concerns.
