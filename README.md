@@ -153,13 +153,13 @@ CleanConnect/
 Clone the repository:
 
 ```bash
-git clone https://github.com/2025ee42f-cmd/CleanConnect-Legacy.git
+git clone https://github.com/2025ee42f-cmd/CleanConnect.git
 ```
 
 Navigate into the project:
 
 ```bash
-cd CleanConnect-Legacy
+cd CleanConnect
 ```
 
 Install dependencies:
